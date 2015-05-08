@@ -2,95 +2,215 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Search for up to 200 places with Radar Search</title>
+
+<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+    <title>Find your closest bar now</title>
+    <link href="css/font-file-84421.css" rel='stylesheet' type='text/css'>
+    <script src="jquery-1.11.2.min.js"></script>
+    <script type="text/javascript">
+<!--
+    function toggle_visibility(id) {
+       var e = document.getElementById(id);
+       if(e.style.display == 'block')
+          e.style.display = 'none';
+       else
+          e.style.display = 'block';
+    }
+//-->
+</script>
     <style>
+	#search{
+		padding: 15px;
+	}
+	#search p{
+		display:inline;
+		font-family:Georgia, "Times New Roman", Times, serif;
+	}
+		
+	#box{
+		padding:20px;
+	}
+	#colour{
+		float:right;
+	}
+	#header {
+		background-color:#C00;	
+		height: 10%;
+		opacity: 0.8;	
+	}
+	#header a{	
+		text-decoration: none;
+		float: left;
+		display:block;
+		font-family: font-file-84421, Arial lack, sans-serif;
+		color:#999;
+		font-size:36px;
+		padding-top:12px;
+		padding-left:10px;
+	}
       html, body, #map-canvas {
-        height: 100%;
+        height: 97%;
+		width: 100%;
         margin: 0px;
         padding: 0px
       }
     </style>
-    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true&libraries=places,visualization"></script>
+    <script type="text/javascript"
+      src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyA93l5zPyIvGB7oYGqzLSk28r5XuIs2Do8
+&sensor=true&libraries=places"></script>
+
     <script>
 var map;
-var infoWindow;
 var service;
+var marker;
+var pos;
+var infowindow;
+var radius1 = 4000;
 
 function initialize() {
-  map = new google.maps.Map(document.getElementById('map-canvas'), {
-    center: new google.maps.LatLng(-33.8668283734, 151.2064891821),
-    zoom: 15,
-    styles: [
-      {
-        stylers: [
-          { visibility: 'simplified' }
-        ]
-      },
-      {
-        elementType: 'labels',
-        stylers: [
-          { visibility: 'off' }
-        ]
-      }
-    ]
-  });
 
-  infoWindow = new google.maps.InfoWindow();
-  service = new google.maps.places.PlacesService(map);
+    var mapOptions = {
+        zoom: 15
+    };
 
-  google.maps.event.addListenerOnce(map, 'bounds_changed', performSearch);
-}
+    map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+    console.log(map);
 
-function performSearch() {
-  var request = {
-    bounds: map.getBounds(),
-    keyword: 'best view'
+    // Try HTML5 geolocation
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            pos = new google.maps.LatLng(position.coords.latitude,
+                                         position.coords.longitude);
+
+            infowindow = new google.maps.InfoWindow({
+                map: map,
+                position: pos,
+                content: 'You are here'
+            });
+
+            map.setCenter(pos);
+
+            var request = {
+			location: pos,
+			radius:  parseInt(document.getElementById('userradius').value, 10),
+			keyword: 'pub'
+			};
+			
+			var service = new google.maps.places.PlacesService(map);
+			service.nearbySearch(request, callback);
+			
+			var request2 = {
+			location: pos,
+			radius: parseInt(document.getElementById('userradius').value, 10),
+			keyword: 'bar'
   };
-  service.radarSearch(request, callback);
+			var service2 = new google.maps.places.PlacesService(map);
+			service2.nearbySearch(request2, callback);
+			
+			var request3 = {
+			location: pos,
+			radius: parseInt(document.getElementById('userradius').value, 10),
+			keyword: 'nightclub'
+			};
+			var service3 = new google.maps.places.PlacesService(map);
+			service3.nearbySearch(request3, callback);
+        }, function() {
+            handleNoGeolocation(true);
+        });
+    } else {
+        // Browser doesn't support Geolocation
+        handleNoGeolocation(false);
+		alert("BarNow cannot access your location");
+    }
+
+    function callback(results, status) {
+        if (status == google.maps.places.PlacesServiceStatus.OK) {
+            for (var i = 0; i < results.length; i++) {
+                console.log('after / to createMarker');
+                createMarker(results[i]);
+            }
+        }
+    }
 }
 
-function callback(results, status) {
-  if (status != google.maps.places.PlacesServiceStatus.OK) {
-    alert(status);
-    return;
-  }
-  for (var i = 0, result; result = results[i]; i++) {
-    createMarker(result);
-  }
-}
 
 function createMarker(place) {
+  var placeLoc = place.geometry.location;
   var marker = new google.maps.Marker({
     map: map,
-    position: place.geometry.location,
-    icon: {
-      // Star
-      path: 'M 0,-24 6,-7 24,-7 10,4 15,21 0,11 -15,21 -10,4 -24,-7 -6,-7 z',
-      fillColor: '#ffff00',
-      fillOpacity: 1,
-      scale: 1/4,
-      strokeColor: '#bd8d2c',
-      strokeWeight: 1
-    }
+    position: place.geometry.location
   });
 
   google.maps.event.addListener(marker, 'click', function() {
-    service.getDetails(place, function(result, status) {
-      if (status != google.maps.places.PlacesServiceStatus.OK) {
-        alert(status);
-        return;
-      }
-      infoWindow.setContent(result.name);
-      infoWindow.open(map, marker);
-    });
+    infowindow.setContent(place.name);
+    infowindow.open(map, this);
   });
 }
 
-google.maps.event.addDomListener(window, 'load', initialize);
+function handleNoGeolocation(errorFlag) {
+  if (errorFlag) {
+    var content = 'Error: The Geolocation service failed.';
+  } else {
+    var content = 'Error: Your browser doesn\'t support geolocation.';
+  }
 
+  var options = {
+    map: map,
+    position: new google.maps.LatLng(60, 105),
+    content: content
+  };
+
+  var infowindow = new google.maps.InfoWindow(options);
+  map.setCenter(options.position);
+}
+
+google.maps.event.addDomListener(window, 'load', initialize);
     </script>
   </head>
   <body>
-    <div id="map-canvas"></div>
+  <div id="header"><a href="#" onclick="toggle_visibility('map-canvas');">BarNow</a>
+  
+  <div id="box">
+    <select name="colour" id="colour" onchange="colour()"> 
+    <option class="1" value="0"> Red</option>
+    <option class="2" value="1"> Grey </option>
+    <option class="3" value="2"> Blue</option>
+    <option class="4" value="3"> Green</option>
+</select>    
+<div id ="search" style="width:46%; float:right"><p> How far are away are you looking?(m)</p>
+<input type="text" id="userradius">
+<button onclick="initialize();">go</button>
+</div>
+</div>
+</div>
+<script>
+function colour(){
+      var pickcolour = document.getElementById('colour').selectedIndex;
+      var div = document.getElementById('header');
+      div.style.backgroundColor='#C00';
+      var colors = ["#C00","grey","blue","green"];
+
+      
+
+      switch (pickcolour){
+          case 0:
+            div.style.backgroundColor='#C00';
+            break;
+          case 1:
+            div.style.backgroundColor='grey';
+            break;
+          case 2:
+            div.style.backgroundColor='blue';
+            break;
+          case 3:
+            div.style.backgroundColor='green';
+            break;
+			       
+       }
+   };
+   
+</script>
+
+  <div id="map-canvas"></div>
   </body>
 </html>
